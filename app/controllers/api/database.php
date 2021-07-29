@@ -17,6 +17,7 @@ use Utopia\Database\Validator\QueryValidator;
 use Utopia\Database\Validator\Queries as QueriesValidator;
 use Utopia\Database\Validator\UID;
 use Utopia\Database\Exception\Authorization as AuthorizationException;
+use Utopia\Database\Exception\Limit as LimitException;
 use Utopia\Database\Exception\Structure as StructureException;
 use Appwrite\Utopia\Response;
 use Utopia\Database\Database;
@@ -456,9 +457,7 @@ App::post('/v1/database/collections/:collectionId/indexes')
     ->param('id', null, new Key(), 'Index ID.')
     ->param('type', null, new WhiteList([Database::INDEX_KEY, Database::INDEX_FULLTEXT, Database::INDEX_UNIQUE, Database::INDEX_SPATIAL, Database::INDEX_ARRAY]), 'Index type.')
     ->param('attributes', null, new ArrayList(new Key()), 'Array of attributes to index.')
-    // TODO@kodumbeats debug below
     ->param('orders', [], new ArrayList(new WhiteList(['ASC', 'DESC'], false, Database::VAR_STRING)), 'Array of index orders.', true)
-    // ->param('orders', [], new ArrayList(new Text(4)), 'Array of index orders.', true)
     ->inject('response')
     ->inject('dbForExternal')
     ->inject('database')
@@ -499,7 +498,13 @@ App::post('/v1/database/collections/:collectionId/indexes')
             $lengths[$key] = ($attributeType === Database::VAR_STRING) ? $attributeSize : null;
         }
 
-        $success = $dbForExternal->addIndexInQueue($collectionId, $id, $type, $attributes, $lengths, $orders);
+        try {
+            $success = $dbForExternal->addIndexInQueue($collectionId, $id, $type, $attributes, $lengths, $orders);
+        } catch (LimitException $e) {
+            throw new Exception($e->getMessage(), 400);
+        } catch (Exception $e) {
+            throw new Exception('Failed to add index to queue', 500);
+        }
 
         // Database->createIndex() does not return a document
         // So we need to create one for the response
@@ -749,7 +754,6 @@ App::get('/v1/database/collections/:collectionId/documents')
     ->param('queries', [], new ArrayList(new Text(128)), 'Array of query strings.', true)
     ->param('limit', 25, new Range(0, 100), 'Maximum number of documents to return in response.  Use this value to manage pagination. By default will return maximum 25 results. Maximum of 100 results allowed per request.', true)
     ->param('offset', 0, new Range(0, 900000000), 'Offset value. The default value is 0. Use this param to manage pagination.', true)
-    // TODO@kodumbeats 'after' param for pagination
     ->param('orderAttributes', [], new ArrayList(new Text(128)), 'Array of attributes used to sort results.', true)
     ->param('orderTypes', [], new ArrayList(new WhiteList(['DESC', 'ASC'], true)), 'Array of order directions for sorting attribtues. Possible values are DESC for descending order, or ASC for ascending order.', true)
     ->inject('response')
