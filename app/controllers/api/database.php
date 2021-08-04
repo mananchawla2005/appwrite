@@ -18,6 +18,7 @@ use Utopia\Database\Validator\Queries as QueriesValidator;
 use Utopia\Database\Validator\Structure;
 use Utopia\Database\Validator\UID;
 use Utopia\Database\Exception\Authorization as AuthorizationException;
+use Utopia\Database\Exception\Limit as LimitException;
 use Utopia\Database\Exception\Structure as StructureException;
 use Appwrite\Utopia\Response;
 use Utopia\Database\Database;
@@ -83,7 +84,11 @@ $attributesCallback = function ($attribute, $response, $dbForExternal, $database
         }
     }
 
-    $success = $dbForExternal->addAttributeInQueue($collectionId, $attributeId, $type, $size, $required, $default, $signed, $array, $format, $filters);
+    try {
+        $success = $dbForExternal->addAttributeInQueue($collectionId, $attributeId, $type, $size, $required, $default, $signed, $array, $format, $filters);
+    } catch (LimitException $e) {
+        throw new Exception($e->getMessage(), 400);
+    }
 
     // Database->addAttributeInQueue() does not return a document
     // So we need to create one for the response
