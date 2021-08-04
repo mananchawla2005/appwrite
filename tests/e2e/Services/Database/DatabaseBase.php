@@ -48,7 +48,6 @@ trait DatabaseBase
             'x-appwrite-key' => $this->getProject()['apiKey']
         ]), [
             'attributeId' => 'releaseYear',
-            'size' => 0,
             'required' => true,
         ]);
 
@@ -60,7 +59,6 @@ trait DatabaseBase
             'attributeId' => 'actors',
             'size' => 256,
             'required' => false,
-            'default' => null,
             'array' => true,
         ]);
 
@@ -87,7 +85,7 @@ trait DatabaseBase
         $this->assertEquals($actors['body']['array'], true);
 
         // wait for database worker to create attributes
-        sleep(10);
+        sleep(20);
 
         $movies = $this->client->call(Client::METHOD_GET, '/database/collections/' . $data['moviesId'], array_merge([
             'content-type' => 'application/json',
