@@ -78,9 +78,13 @@ class DatabaseV1 extends Worker
         $format = $attribute->getAttribute('format', null);
         $filters = $attribute->getAttribute('filters', []);
 
+        $success = $dbForExternal->removeAttributeInQueue($collectionId, $id);
+        if (!$success) {
+            Console::error('Failed to remove attribute from queue: ' . $id);
+        }
         $success = $dbForExternal->createAttribute($collectionId, $id, $type, $size, $required, $default, $signed, $array, $format, $filters);
-        if ($success) {
-            $removed = $dbForExternal->removeAttributeInQueue($collectionId, $id);
+        if (!$success) {
+            Console::error('Failed to create attribute: ' . $id);
         }
     }
 
@@ -113,9 +117,23 @@ class DatabaseV1 extends Worker
         $lengths = $index->getAttribute('lengths', []);
         $orders = $index->getAttribute('orders', []);
 
+        $success = $dbForExternal->removeIndexInQueue($collectionId, $id);
+        var_dump([
+            "remove index from queue",
+            "id" => $id,
+            "success" => $success
+        ]);
+        if (!$success) {
+            Console::error('Failed to remove index from queue: ' . $id);
+        }
         $success = $dbForExternal->createIndex($collectionId, $id, $type, $attributes, $lengths, $orders);
-        if ($success) {
-            $dbForExternal->removeIndexInQueue($collectionId, $id);
+        var_dump([
+            "add index", 
+            "id" => $id,
+            "success" => $success
+        ]);
+        if (!$success) {
+            Console::error('Failed to create index: ' . $id);
         }
     }
 
