@@ -120,7 +120,7 @@ trait DatabaseBase
             'x-appwrite-project' => $this->getProject()['$id'],
             'x-appwrite-key' => $this->getProject()['apiKey']
         ]), [
-            'id' => 'titleIndex',
+            'indexId' => 'titleIndex',
             'type' => 'fulltext',
             'attributes' => ['title'],
         ]);
