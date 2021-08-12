@@ -1001,8 +1001,6 @@ trait DatabaseBase
             'write' => [$user]
         ]);
 
-        var_dump($collection);
-
         $this->assertEquals($collection['headers']['status-code'], 201);
         $this->assertEquals($collection['body']['name'], 'enforceCollectionPermissions');
         $this->assertEquals($collection['body']['enforce'], 'collection');
@@ -1043,8 +1041,6 @@ trait DatabaseBase
             'content-type' => 'application/json',
             'x-appwrite-project' => $this->getProject()['$id'],
         ], $this->getHeaders()));
-
-        // var_dump($documents);
 
         $this->assertCount(1, $documents['body']['documents']);
     }
