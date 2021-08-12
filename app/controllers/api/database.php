@@ -12,6 +12,7 @@ use Utopia\Validator\WhiteList;
 use Utopia\Validator\Text;
 use Utopia\Validator\ArrayList;
 use Utopia\Validator\JSON;
+use Utopia\Database\Validator\Authorization;
 use Utopia\Database\Validator\Key;
 use Utopia\Database\Validator\Permissions;
 use Utopia\Database\Validator\QueryValidator;
@@ -134,12 +135,13 @@ App::post('/v1/database/collections')
     ->label('sdk.response.model', Response::MODEL_COLLECTION)
     ->param('collectionId', '', new CustomId(), 'Unique Id. Choose your own unique ID or pass the string `unique()` to auto generate it. Valid chars are a-z, A-Z, 0-9, and underscore. Can\'t start with a leading underscore. Max length is 36 chars.')
     ->param('name', '', new Text(128), 'Collection name. Max length: 128 chars.')
-    ->param('read', null, new Permissions(), 'An array of strings with read permissions. By default no user is granted with any read permissions. [learn more about permissions](/docs/permissions) and get a full list of available permissions.')
-    ->param('write', null, new Permissions(), 'An array of strings with write permissions. By default no user is granted with any write permissions. [learn more about permissions](/docs/permissions) and get a full list of available permissions.')
+    ->param('enforce', 'document', new Whitelist(['collection', 'document']), 'Enforce either "collection" or "document" permissions. Defaults to "document".', true)
+    ->param('read', null, new Permissions(), 'An array of strings with read permissions. By default no user is granted with any read permissions. [learn more about permissions](/docs/permissions) and get a full list of available permissions. Optional when document permissions are enforced.', true)
+    ->param('write', null, new Permissions(), 'An array of strings with write permissions. By default no user is granted with any write permissions. [learn more about permissions](/docs/permissions) and get a full list of available permissions. Optional when document permissions are enforced.', true)
     ->inject('response')
     ->inject('dbForExternal')
     ->inject('audits')
-    ->action(function ($collectionId, $name, $read, $write, $response, $dbForExternal, $audits) {
+    ->action(function ($collectionId, $name, $enforce, $read, $write, $response, $dbForExternal, $audits) {
         /** @var Appwrite\Utopia\Response $response */
         /** @var Utopia\Database\Database $dbForExternal*/
         /** @var Appwrite\Event\Event $audits */
@@ -148,11 +150,17 @@ App::post('/v1/database/collections')
 
         $collection = $dbForExternal->createCollection($collectionId);
 
-        // TODO@kodumbeats what should the default permissions be?
-        $read = (is_null($read)) ? ($collection->getRead() ?? []) : $read; // By default inherit read permissions
-        $write = (is_null($write)) ? ($collection->getWrite() ?? []) : $write; // By default inherit write permissions
+        if ($enforce === 'collection') {
+            if (\is_null($read) || \is_null($write)) {
+                throw new Exception('Read and write permissions required when enforcing collection permissions', 400);
+            }
+        }
+
+        $read = (\is_null($read)) ? ($collection->getRead() ?? []) : $read; // By default inherit read permissions
+        $write = (\is_null($write)) ? ($collection->getWrite() ?? []) : $write; // By default inherit write permissions
 
         $collection->setAttribute('name', $name);
+        $collection->setAttribute('enforce', $enforce);
         $collection->setAttribute('$read', $read);
         $collection->setAttribute('$write', $write);
 
@@ -238,12 +246,13 @@ App::put('/v1/database/collections/:collectionId')
     ->label('sdk.response.model', Response::MODEL_COLLECTION)
     ->param('collectionId', '', new UID(), 'Collection unique ID.')
     ->param('name', null, new Text(128), 'Collection name. Max length: 128 chars.')
+    ->param('enforce', 'document', new Whitelist(['collection', 'document']), 'Enforce either "collection" or "document" permissions. Defaults to "document".', true)
     ->param('read', null, new Permissions(), 'An array of strings with read permissions. By default inherits the existing read permissions. [learn more about permissions](/docs/permissions) and get a full list of available permissions.', true)
     ->param('write', null, new Permissions(), 'An array of strings with write permissions. By default inherits the existing write permissions. [learn more about permissions](/docs/permissions) and get a full list of available permissions.', true)
     ->inject('response')
     ->inject('dbForExternal')
     ->inject('audits')
-    ->action(function ($collectionId, $name, $read, $write, $response, $dbForExternal, $audits) {
+    ->action(function ($collectionId, $name, $enforce, $read, $write, $response, $dbForExternal, $audits) {
         /** @var Appwrite\Utopia\Response $response */
         /** @var Utopia\Database\Database $dbForExternal */
         /** @var Appwrite\Event\Event $audits */
@@ -260,6 +269,7 @@ App::put('/v1/database/collections/:collectionId')
         try {
             $collection = $dbForExternal->updateDocument(Database::COLLECTIONS, $collection->getId(), new Document(\array_merge($collection->getArrayCopy(), [
                 'name' => $name,
+                'enforce' => $enforce,
                 '$read' => $read,
                 '$write' => $write
             ])));
@@ -1026,6 +1036,14 @@ App::post('/v1/database/collections/:collectionId/documents')
             throw new Exception('Collection not found', 404);
         }
 
+        // Check collection permissions when enforced
+        if ($collection->getAttribute('enforce') === 'collection') {
+            $validator = new Authorization($collection, 'write');
+            if (!$validator->isValid($collection->getWrite())) {
+                throw new Exception('Unauthorized permissions', 401);
+            }
+        }
+
         $data['$collection'] = $collection->getId(); // Adding this param to make API easier for developers
         $data['$id'] = $documentId == 'unique()' ? $dbForExternal->getId() : $documentId;
         $data['$read'] = (is_null($read) && !$user->isEmpty()) ? ['user:'.$user->getId()] : $read ?? []; //  By default set read permissions for user
@@ -1062,7 +1080,6 @@ App::get('/v1/database/collections/:collectionId/documents')
     ->param('queries', [], new ArrayList(new Text(128)), 'Array of query strings.', true)
     ->param('limit', 25, new Range(0, 100), 'Maximum number of documents to return in response.  Use this value to manage pagination. By default will return maximum 25 results. Maximum of 100 results allowed per request.', true)
     ->param('offset', 0, new Range(0, 900000000), 'Offset value. The default value is 0. Use this param to manage pagination.', true)
-    // TODO@kodumbeats 'after' param for pagination
     ->param('orderAttributes', [], new ArrayList(new Text(128)), 'Array of attributes used to sort results.', true)
     ->param('orderTypes', [], new ArrayList(new WhiteList(['DESC', 'ASC'], true)), 'Array of order directions for sorting attribtues. Possible values are DESC for descending order, or ASC for ascending order.', true)
     ->inject('response')
@@ -1075,6 +1092,14 @@ App::get('/v1/database/collections/:collectionId/documents')
 
         if ($collection->isEmpty()) {
             throw new Exception('Collection not found', 404);
+        }
+
+        // Check collection permissions when enforced
+        if ($collection->getAttribute('enforce') === 'collection') {
+            $validator = new Authorization($collection, 'read');
+            if (!$validator->isValid($collection->getRead())) {
+                throw new Exception('Unauthorized permissions', 401);
+            }
         }
 
         $queries = \array_map(function ($query) {
@@ -1126,6 +1151,14 @@ App::get('/v1/database/collections/:collectionId/documents/:documentId')
             throw new Exception('Collection not found', 404);
         }
 
+        // Check collection permissions when enforced
+        if ($collection->getAttribute('enforce') === 'collection') {
+            $validator = new Authorization($collection, 'read');
+            if (!$validator->isValid($collection->getRead())) {
+                throw new Exception('Unauthorized permissions', 401);
+            }
+        }
+
         $document = $dbForExternal->getDocument($collectionId, $documentId);
 
         if ($document->isEmpty()) {
@@ -1164,6 +1197,14 @@ App::patch('/v1/database/collections/:collectionId/documents/:documentId')
 
         if ($collection->isEmpty()) {
             throw new Exception('Collection not found', 404);
+        }
+
+        // Check collection permissions when enforced
+        if ($collection->getAttribute('enforce') === 'collection') {
+            $validator = new Authorization($collection, 'write');
+            if (!$validator->isValid($collection->getWrite())) {
+                throw new Exception('Unauthorized permissions', 401);
+            }
         }
 
         $document = $dbForExternal->getDocument($collectionId, $documentId);
@@ -1233,6 +1274,14 @@ App::delete('/v1/database/collections/:collectionId/documents/:documentId')
 
         if ($collection->isEmpty()) {
             throw new Exception('Collection not found', 404);
+        }
+
+        // Check collection permissions when enforced
+        if ($collection->getAttribute('enforce') === 'collection') {
+            $validator = new Authorization($collection, 'write');
+            if (!$validator->isValid($collection->getWrite())) {
+                throw new Exception('Unauthorized permissions', 401);
+            }
         }
 
         $document = $dbForExternal->getDocument($collectionId, $documentId);

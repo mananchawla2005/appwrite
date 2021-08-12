@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c2bda60e7b774a0c813f52033a268c6c",
+    "content-hash": "f00a6cc0d3ad776dfe531b906398cd9d",
     "packages": [
         {
             "name": "adhocore/jwt",
@@ -1984,17 +1984,11 @@
         },
         {
             "name": "utopia-php/database",
-            "version": "0.6.1",
+            "version": "dev-dev",
             "source": {
                 "type": "git",
-                "url": "https://github.com/utopia-php/database.git",
-                "reference": "59d9d34164b6fb896bc43085a9a82a292b43473a"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/database/zipball/59d9d34164b6fb896bc43085a9a82a292b43473a",
-                "reference": "59d9d34164b6fb896bc43085a9a82a292b43473a",
-                "shasum": ""
+                "url": "https://github.com/kodumbeats/database",
+                "reference": "33fc14a3567ea469ad0218e869551b62e10223fe"
             },
             "require": {
                 "ext-mongodb": "*",
@@ -2017,7 +2011,11 @@
                     "Utopia\\Database\\": "src/Database"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "autoload-dev": {
+                "psr-4": {
+                    "Utopia\\Tests\\": "tests/Database"
+                }
+            },
             "license": [
                 "MIT"
             ],
@@ -2039,11 +2037,7 @@
                 "upf",
                 "utopia"
             ],
-            "support": {
-                "issues": "https://github.com/utopia-php/database/issues",
-                "source": "https://github.com/utopia-php/database/tree/0.6.1"
-            },
-            "time": "2021-08-05T17:19:16+00:00"
+            "time": "2021-08-11T20:07:07+00:00"
         },
         {
             "name": "utopia-php/domains",
@@ -6254,9 +6248,18 @@
             "time": "2015-12-17T08:42:14+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "utopia-php/database",
+            "version": "dev-dev",
+            "alias": "0.6.1",
+            "alias_normalized": "0.6.1.0"
+        }
+    ],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "utopia-php/database": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

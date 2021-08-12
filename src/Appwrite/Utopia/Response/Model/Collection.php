@@ -37,6 +37,12 @@ class Collection extends Model
                 'default' => '',
                 'example' => '',
             ])
+            ->addRule('enforce', [
+                'type' => self::TYPE_STRING,
+                'description' => 'Enforce either "collection" or "document" permissions',
+                'default' => 'document',
+                'example' => 'collection',
+            ])
             ->addRule('attributes', [
                 'type' => Response::MODEL_ATTRIBUTE,
                 'description' => 'Collection attributes.',
